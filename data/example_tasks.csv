@@ -1,0 +1,13 @@
+task_id,aircraft_id,duration,precedence,required_vehicle_type
+T1,A1,10,-,Tug
+T2,A1,8,T1,Loader
+T3,A1,5,T2,Loader
+T4,A1,12,T3,Tug
+T1,A2,10,-,Tug
+T2,A2,8,T1,Loader
+T3,A2,5,T2,Loader
+T4,A2,12,T3,Tug
+T1,A3,10,-,Tug
+T2,A3,8,T1,Loader
+T3,A3,5,T2,Loader
+T4,A3,12,T3,Tug
