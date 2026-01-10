@@ -1,180 +1,218 @@
+# Optimisation des opérations au sol aéroportuaires
 
-# Airport Ground Operations Optimization  
-*A Vehicle Scheduling & Task Assignment Model using OR-Tools (CP-SAT)*
+## Présentation générale
 
----
+Ce projet propose une **modélisation et une résolution complètes d’un problème d’optimisation des opérations au sol dans un aéroport** (ground handling).
 
-## ✈️ Project Overview  
+Lorsqu’un avion arrive, une séquence de tâches doit être réalisée (par exemple : débarquement, nettoyage, embarquement), sous contraintes de temps et de ressources.  
+Ces tâches doivent être assignées à une flotte limitée de véhicules spécialisés, capables de se déplacer entre différents parkings de l’aéroport.
 
-This project demonstrates how to **model and solve airport ground operations** using a **Constraint Programming scheduling model** (OR-Tools CP-SAT).  
-It is designed as a **portfolio project** suitable for job applications in:
-
-- Operations Research  
-- Data Science  
-- Optimization Engineering  
-- Algorithmic Decision Systems  
-- Industrial Engineering  
-
-The goal is to compute an **optimal schedule** of ground-handling tasks during aircraft turnaround using a limited fleet of compatible vehicles, while respecting:
-
-- Aircraft arrival and departure windows  
-- Precedence constraints between tasks  
-- Non-overlapping vehicle schedules  
-- Vehicle–task compatibility  
-- Travel times between parking stands  
-
-The repository contains a complete implementation and demonstration notebook with visualizations (Gantt charts).
+L’objectif est de **calculer un planning réalisable et optimal**, en tenant compte de contraintes opérationnelles réalistes, et en minimisant la durée totale des opérations au sol (*makespan*).
 
 ---
 
-## 📂 Repository Structure  
+## Contexte du problème
 
-```
-airport-ground-ops-optimization/
-│
-├── data/
-│   ├── example_aircraft.csv
-│   ├── example_tasks.csv
-│   ├── example_vehicles.csv
-│   └── parking_graph.csv
-│
-├── src/
-│   ├── optimization/
-│   │   └── ground_ops_model.py      # Full OR-Tools CP-SAT model
-│   └── config/
-│       └── paths.py                 # Project path utilities
-│
-├── 01_ground_ops_demo.ipynb         # Notebook: explanation + visualization
-├── README.md                        # (this file)
-└── results/
-    └── plots/
-        └── gantt_by_vehicle.png     # Example visualization
-```
+Le problème modélisé correspond à une situation opérationnelle réelle :
+
+- Plusieurs avions sont présents simultanément sur le tarmac
+- Chaque avion possède :
+  - une heure d’arrivée
+  - une heure de départ
+  - un parking attitré
+- Chaque avion nécessite l’exécution d’une suite de tâches ordonnées
+- Les tâches :
+  - ont des durées fixes
+  - peuvent nécessiter des types de véhicules spécifiques
+  - doivent respecter des contraintes de précédence
+- Les véhicules :
+  - sont disponibles en nombre limité
+  - ne peuvent effectuer qu’une seule tâche à la fois
+  - doivent se déplacer physiquement entre parkings
+
+Ce problème combine plusieurs dimensions classiques de la recherche opérationnelle :
+- ordonnancement
+- affectation de ressources
+- contraintes de précédence
+- temps de déplacement
+- fenêtres temporelles
 
 ---
 
-## 🧠 Mathematical Model  
-**The COMPLETE mathematical formulation** is available inside:  
+## Données d’entrée
+
+Les données sont fournies sous forme de fichiers CSV dans le dossier `data/` :
+
+- `example_aircraft.csv`  
+  Avions, parkings, heures d’arrivée et de départ
+
+- `example_tasks.csv`  
+  Tâches à réaliser (durée, précédence, type de véhicule requis)
+
+- `example_vehicles.csv`  
+  Flotte de véhicules (type, position initiale)
+
+- `parking_graph.csv`  
+  Temps de déplacement entre parkings (graphe pondéré)
+
+---
+
+## Modélisation mathématique (vue d’ensemble)
+
+La résolution repose sur un **modèle de programmation par contraintes** implémenté avec **OR-Tools (CP-SAT)**.
+
+### Variables de décision
+
+- start_t : heure de début de la tâche t  
+- end_t : heure de fin de la tâche t  
+- assign_{v,t} ∈ {0,1} : vaut 1 si le véhicule v réalise la tâche t  
+- y_{v,i,j} ∈ {0,1} : indique l’ordre d’exécution entre deux tâches i et j sur un même véhicule  
+
+---
+
+### Contraintes principales
+
+#### Affectation
+
+Chaque tâche est réalisée par **exactement un véhicule compatible**.
+
+#### Non-chevauchement
+
+Un véhicule ne peut exécuter **qu’une seule tâche à la fois**.
+
+#### Fenêtres avion
+
+Les tâches d’un avion doivent respecter :
+
+    arrival ≤ start_t
+    end_t ≤ departure
+
+#### Précédence
+
+Certaines tâches doivent être exécutées dans un ordre imposé :
+
+    start_t ≥ end_prédécesseur
+
+#### Temps de déplacement
+
+Lorsqu’un véhicule passe d’une tâche située sur un parking à une autre :
+
+    start_j ≥ end_i + travel_time(parking_i, parking_j)
+
+Les temps de trajet sont extraits du graphe de parkings.
+
+#### Position initiale des véhicules
+
+Avant sa première tâche, un véhicule doit se déplacer depuis sa position initiale vers le parking de l’avion concerné.  
+Le temps de trajet initial est pris en compte dans les contraintes de planification.
+
+---
+
+## Objectif d’optimisation
+
+L’objectif est de **minimiser le makespan**, c’est-à-dire l’instant de fin de la dernière tâche :
+
+    min max(end_t)
+
+Cela permet de réduire le temps total d’occupation des ressources et d’optimiser les opérations au sol.
+
+---
+
+## Résultats et visualisations
+
+Les résultats sont analysés à l’aide de diagrammes de Gantt générés dans le notebook de démonstration et situés dans `results/plots/`
+
+### Planning par véhicule
+
+![Planning des véhicules](results/plots/gantt_vehicle.png)
+
+Cette visualisation permet d’observer :
+- l’utilisation de chaque véhicule
+- les temps morts
+- les temps de déplacement implicites entre tâches
+
+---
+
+### Planning par avion
+
+![Planning par avion](results/plots/gantt_plane.png)
+
+Cette vue met en évidence :
+- la séquence complète des tâches pour chaque avion
+- le respect des heures d’arrivée et de départ
+- le temps total passé au sol
+
+---
+
+## Structure du projet
+
+- `data/`  
+  Contient les données d’entrée au format CSV :
+  - `example_aircraft.csv` : avions (parking, arrivée, départ)
+  - `example_tasks.csv` : tâches (durée, précédence, type requis)
+  - `example_vehicles.csv` : véhicules (type, position initiale)
+  - `parking_graph.csv` : graphe des temps de déplacement entre parkings
+
+- `docs/`
+  Contient la modélisation mathématique complète au format PDF
+  
+  
 
 - `src/optimization/ground_ops_model.py`  
-- `01_ground_ops_demo.ipynb`  
+  Implémentation du modèle OR-Tools (CP-SAT) :
+  - chargement des données (`from_csv_folder`)
+  - construction du modèle (`build_model`)
+  - résolution (`solve`)
+  - extraction de solution (`extract_solution`)
 
-This includes:  
-✔ variable definitions  
-✔ reified sequencing constraints  
-✔ travel times (routing-like logic)  
-✔ optional interval variables  
-✔ big-M linearization for task ordering  
-✔ full task–vehicle assignment formulation  
+- `results/`
+  - `results/solutions/` : solution exportée (CSV)
+  - `results/plots/` : figures finales (Gantt avion / véhicule)
 
-Below is a summarized version.
+- `demo.ipynb`  
+  Notebook de démonstration :
+  - exécution end-to-end (data → solve → export → plots)
+  - analyse de la solution et visualisations
 
----
-
-## 📘 Sets  
-
-- **A** : aircraft  
-- **T(a)** : tasks for aircraft *a*  
-- **V** : vehicles  
-- **P** : parkings  
+- `README.md`  
+  Description du problème, des données, du modèle et des résultats.
 
 ---
 
-## 🔢 Parameters  
+## Démonstration
 
-- `duration(t)` : task duration  
-- `arrival(a)`, `departure(a)` : aircraft availability  
-- `required_type(t)` : required vehicle type  
-- `precedence(t)` : predecessor task  
-- `travel_time(p1, p2)` : routing time between parkings  
+Le notebook `demo.ipynb` permet de :
 
----
+- charger les données
+- construire le modèle d’optimisation
+- résoudre le problème
+- analyser la solution
+- générer les visualisations
 
-## 🔣 Decision Variables  
-
-- **x[v, t] ∈ {0,1}** : vehicle *v* performs task *t*  
-- **start[t], end[t]** : scheduling times  
-- **y[v, i, j] ∈ {0,1}** : ordering of tasks on each vehicle  
+Il constitue le point d’entrée principal pour comprendre et tester le projet.
 
 ---
 
-## 🔧 Constraints  
+## Documentation théorique complète
 
-### ✔ Vehicle assignment  
-Exactly one compatible vehicle per task.
+**❗Important ❗**
 
-### ✔ Non-overlapping tasks  
-Using OR-Tools **optional intervals** (`NewOptionalIntervalVar`).
+La **formulation mathématique complète du problème**, ainsi que la **solution entièrement rédigée et détaillée**  (variables, contraintes, justification des choix de modélisation, schémas explicatifs) sont disponibles dans l’archive fournie avec ce projet.
 
-### ✔ Task precedence  
-`start[t] ≥ end[precedence(t)]`
-
-### ✔ Aircraft windows  
-`arrival(a) ≤ start[t]`  
-`end[t] ≤ departure(a]`
-
-### ✔ Travel time constraints  
-For tasks *i*, *j* on same vehicle *v*:  
-```
-start[j] ≥ end[i] + travel_time(i, j)     if y[i, j] = 1
-start[i] ≥ end[j] + travel_time(j, i)     if y[j, i] = 1
-```
-
-### ✔ Initial movement of vehicle  
-From its base position to the first task.
+Ce document complète le code et permet d’approfondir la compréhension théorique du modèle.
 
 ---
 
-## 🎯 Objective  
+## Technologies utilisées
 
-**Minimize makespan**  
-= finish the last task as early as possible.
-
-This compresses the entire operation timeline and optimizes resource usage.
-
----
-
-## 📈 Visualizations  
-
-### ✓ Gantt chart by vehicle  
-Shows how the schedule uses each vehicle over time.
-
-### ✓ Gantt chart by aircraft  
-Shows the entire turnaround of each aircraft, including:
-
-- arrival  
-- task sequence  
-- departure  
+- Python
+- OR-Tools (CP-SAT)
+- Pandas
+- Matplotlib
+- Jupyter Notebook
 
 ---
 
-## 💻 Technologies  
+## Remarques finales
 
-- Python  
-- OR-Tools CP-SAT  
-- Pandas  
-- Matplotlib  
-- Jupyter  
-
----
-
-## 🌟 Why This Project Matters  
-
-This project demonstrates my ability to:
-
-- Understand and model a real operational problem  
-- Build a complete optimization model from scratch  
-- Implement complex sequencing + routing constraints  
-- Produce clear visual and analytical outputs  
-- Structure a clean and professional project repository  
-
-It reflects strong skills in **Operations Research, Data Engineering, and Algorithmic Thinking**.
-
----
-
-## 📬 Contact  
-
-**Gabriel Muñoz**  
-✉️ gabriel.munoz.at.work@gmail.com  
-🔗 LinkedIn : (insert your link)
-
+Ce projet illustre une approche complète et rigoureuse de résolution d’un problème d’optimisation opérationnelle, de la modélisation mathématique à l’implémentation et à l’analyse des résultats.
