@@ -1,3 +1,10 @@
 vehicle_id,type,initial_position
-V1,Tug,P1
-V2,Loader,P3
+V1_1,V1,BASE
+V1_2,V1,BASE
+V1_3,V1,BASE
+V1_4,V1,BASE
+V1_5,V1,BASE
+V2_1,V2,BASE
+V2_2,V2,BASE
+V2_3,V2,BASE
+V2_4,V2,BASE
